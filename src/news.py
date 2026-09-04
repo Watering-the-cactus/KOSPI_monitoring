@@ -1,6 +1,10 @@
-"""네이버 뉴스 검색 API로 관련 기사를 찾고, Claude API로 요약/코멘트를 생성한다.
+"""네이버 뉴스 검색(NAVER API HUB) API로 관련 기사를 찾고, Claude API로 요약/코멘트를 생성한다.
 
-필요 secrets: NAVER_CLIENT_ID, NAVER_CLIENT_SECRET (developers.naver.com 무료 가입),
+2026년 네이버 검색 API가 개발자센터(developers.naver.com)에서 네이버클라우드플랫폼(NCP)의
+NAVER API HUB로 이관되었다. 기존 개발자센터 방식은 2027-06-30까지 유예되지만, 이 프로젝트는
+계속 운영할 것이므로 처음부터 신규 HUB 방식으로 등록한다.
+
+필요 secrets: NAVER_API_KEY_ID, NAVER_API_KEY (NAVER API HUB, console.ncloud.com 무료 가입),
              ANTHROPIC_API_KEY (console.anthropic.com)
 """
 from __future__ import annotations
@@ -10,7 +14,7 @@ import re
 
 import requests
 
-NAVER_SEARCH_URL = "https://openapi.naver.com/v1/search/news.json"
+NAVER_SEARCH_URL = "https://naverapihub.apigw.ntruss.com/search/v1/news"
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-5"
 
@@ -22,10 +26,10 @@ def _strip_tags(text: str) -> str:
 
 
 def search_news(query: str, display: int = 5) -> list[dict]:
-    """네이버 뉴스 검색. 반환 항목: title, description, link, pubDate."""
+    """네이버 뉴스 검색(API HUB). 반환 항목: title, description, link, pubDate."""
     headers = {
-        "X-Naver-Client-Id": os.environ["NAVER_CLIENT_ID"],
-        "X-Naver-Client-Secret": os.environ["NAVER_CLIENT_SECRET"],
+        "X-NCP-APIGW-API-KEY-ID": os.environ["NAVER_API_KEY_ID"],
+        "X-NCP-APIGW-API-KEY": os.environ["NAVER_API_KEY"],
     }
     params = {"query": query, "display": display, "sort": "sim"}
 

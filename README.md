@@ -42,10 +42,12 @@ GitHub Actions (매일 KST 07:30, cron)
 2. [Google 계정 > 보안 > 앱 비밀번호](https://myaccount.google.com/apppasswords) 에서
    앱 비밀번호를 발급받습니다.
 
-### 3. 네이버 검색 API (뉴스)
+### 3. 네이버 검색 API (뉴스) — NAVER API HUB
 
-[developers.naver.com](https://developers.naver.com) 에서 애플리케이션을 등록하고
-"검색" API 사용 신청을 하면 Client ID / Secret이 발급됩니다. 무료입니다.
+2026년부로 검색 API가 개발자센터에서 네이버클라우드플랫폼(NCP)의 NAVER API HUB로
+이관되었습니다. [console.ncloud.com](https://console.ncloud.com) 에서 NCP 계정을 만든 뒤
+NAVER API HUB에서 "검색 - 뉴스" API를 신청하면 API Key ID / API Key가 발급됩니다.
+현재는 한시적으로 무료이며, 추후 유료 전환 시 별도 공지된다고 안내되어 있습니다.
 
 ### 4. Claude API (뉴스 요약)
 
@@ -61,7 +63,7 @@ Settings → Secrets and variables → Actions 에서 아래를 등록합니다.
 | `KRX_ID`, `KRX_PW` | KRX 로그인 |
 | `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` | 발신 |
 | `RECIPIENT_EMAIL` | 수신 (BCG 메일 주소) |
-| `NAVER_CLIENT_ID`, `NAVER_CLIENT_SECRET` | 뉴스 검색 |
+| `NAVER_API_KEY_ID`, `NAVER_API_KEY` | 뉴스 검색 (NAVER API HUB) |
 | `ANTHROPIC_API_KEY` | 뉴스 요약 |
 
 Repository variable(Variables 탭)로 `DASHBOARD_BASE_URL`도 등록하면 이메일에
