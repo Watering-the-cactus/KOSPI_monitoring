@@ -8,7 +8,10 @@ from __future__ import annotations
 import pandas as pd
 
 DEFAULT_LOOKBACK = 10
-DEFAULT_STREAK_THRESHOLD = 7  # scripts/backfill_history.py --explore 결과로 조정할 값
+# 2026-09-04, 실제 59거래일 데이터로 롤링 비교한 결과(scripts/backfill_history.py
+# --explore-thresholds) threshold=8이 하루 평균 22개(범위 14~32개)로 목표 범위
+# (5~30개)에 가장 잘 맞아 이 값으로 확정. 5=평균100개, 6=71개, 7=44개로 너무 많았음.
+DEFAULT_STREAK_THRESHOLD = 8
 
 SHORT_WINDOW = 3
 LONG_WINDOW = 20
