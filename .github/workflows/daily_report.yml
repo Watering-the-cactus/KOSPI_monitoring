@@ -1,0 +1,46 @@
+name: Daily KOSPI Investor Report
+
+on:
+  schedule:
+    # cron은 UTC 기준. KST(UTC+9) 07:30 = 전날 UTC 22:30
+    # 일(0)~목(4) UTC 22:30 실행 -> 월~금 KST 07:30 발송 (전 거래일 데이터 기준)
+    - cron: "30 22 * * 0-4"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # data/, docs/ 히스토리/대시보드를 리포지토리에 커밋하기 위함
+
+jobs:
+  send-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily report pipeline
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          NAVER_CLIENT_ID: ${{ secrets.NAVER_CLIENT_ID }}
+          NAVER_CLIENT_SECRET: ${{ secrets.NAVER_CLIENT_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
+        run: python -m src.main
+
+      - name: Commit history & dashboard back to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ docs/
+          git diff --cached --quiet || git commit -m "chore: daily snapshot $(date -u +%F)"
+          git push
