@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       days:
-        description: "시딩할 과거 거래일 수"
+        description: "시딩할(또는 불러올) 과거 거래일 수"
         required: false
         default: "60"
+      explore_only:
+        description: "true면 새로 수집하지 않고 이미 data/에 있는 히스토리로만 분석"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -29,7 +33,12 @@ jobs:
         env:
           KRX_ID: ${{ secrets.KRX_ID }}
           KRX_PW: ${{ secrets.KRX_PW }}
-        run: python -m scripts.backfill_history --days ${{ github.event.inputs.days }} --explore-thresholds
+        run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.explore_only }}" = "true" ]; then
+            EXTRA="--explore-only"
+          fi
+          python -m scripts.backfill_history --days ${{ github.event.inputs.days }} --explore-thresholds $EXTRA
 
       - name: Commit seeded history back to repo
         if: always()

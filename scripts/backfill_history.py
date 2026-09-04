@@ -96,6 +96,23 @@ def collect_history(days: int, market: str = "KOSPI") -> dict[str, pd.DataFrame]
     return {d: pd.DataFrame(rows) for d, rows in rows_by_date.items()}
 
 
+def _fetch_index_close_with_retry(
+    fromdate: str, todate: str, ticker: str = "1001", attempts: int = 5
+) -> pd.Series:
+    """코스피 지수 종가 시계열을 가져온다. KRX 쪽 일시적 오류(레이트리밋 등)로
+    빈 응답이 오는 경우가 있어 짧은 대기 후 재시도한다."""
+    last_exc: Exception | None = None
+    for i in range(attempts):
+        try:
+            series = stock.get_index_ohlcv_by_date(fromdate, todate, ticker)["종가"]
+            if series is not None and not series.empty:
+                return series
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+        time.sleep(2.0)
+    raise RuntimeError(f"코스피 지수 데이터를 가져오지 못했습니다: {last_exc}")
+
+
 def explore_thresholds(
     history: dict[str, pd.DataFrame], candidates: list[int], lookback: int = 10
 ) -> None:
@@ -110,7 +127,7 @@ def explore_thresholds(
         print(f"히스토리가 {len(dates)}일치뿐이라 롤링 비교를 하기엔 부족합니다.")
         return
 
-    index_close = stock.get_index_ohlcv_by_date(dates[0], dates[-1], "1001")["종가"]
+    index_close = _fetch_index_close_with_retry(dates[0], dates[-1])
     index_close.index = index_close.index.strftime("%Y%m%d")
 
     windows = range(lookback, len(dates) + 1)
@@ -139,18 +156,29 @@ if __name__ == "__main__":
     parser.add_argument(
         "--explore-thresholds",
         action="store_true",
-        help="6/7/8/9 임계값별 분포를 출력 (저장은 --dry-run과 별개로 계속 수행)",
+        help="4~8 임계값별 분포를 출력 (저장은 --dry-run과 별개로 계속 수행)",
+    )
+    parser.add_argument(
+        "--explore-only",
+        action="store_true",
+        help="새로 수집하지 않고 이미 data/ 에 있는 히스토리만으로 임계값을 탐색",
     )
     args = parser.parse_args()
 
-    snapshots = collect_history(args.days)
+    if args.explore_only:
+        from src.history import load_recent_snapshots
 
-    if not args.dry_run:
-        for d, snap_df in snapshots.items():
-            save_daily_snapshot(d, snap_df)
-        print(f"{len(snapshots)}개 거래일 스냅샷을 data/ 에 저장했습니다.")
+        snapshots = load_recent_snapshots(n_days=args.days)
+        print(f"기존 data/ 에서 {len(snapshots)}개 거래일 스냅샷을 불러왔습니다.")
     else:
-        print(f"(dry-run) {len(snapshots)}개 거래일 스냅샷 준비 완료, 저장은 생략")
+        snapshots = collect_history(args.days)
+
+        if not args.dry_run:
+            for d, snap_df in snapshots.items():
+                save_daily_snapshot(d, snap_df)
+            print(f"{len(snapshots)}개 거래일 스냅샷을 data/ 에 저장했습니다.")
+        else:
+            print(f"(dry-run) {len(snapshots)}개 거래일 스냅샷 준비 완료, 저장은 생략")
 
     if args.explore_thresholds:
         explore_thresholds(snapshots, candidates=[4, 5, 6, 7, 8])
