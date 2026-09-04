@@ -37,7 +37,10 @@ def load_recent_snapshots(
         files = [f for f in files if f.stem <= upto_date]
     files = files[-n_days:]
 
-    return {
-        f.stem: pd.read_csv(f, dtype={"종목코드": str}, encoding="utf-8-sig")
-        for f in files
-    }
+    result: dict[str, pd.DataFrame] = {}
+    for f in files:
+        try:
+            result[f.stem] = pd.read_csv(f, dtype={"종목코드": str}, encoding="utf-8-sig")
+        except pd.errors.EmptyDataError:
+            print(f"경고: {f.name}이 비어있어 건너뜁니다.")
+    return result

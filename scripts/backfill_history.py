@@ -35,9 +35,12 @@ INVESTOR_COLUMN_MAP = {
 
 
 def _trading_dates(days: int) -> list[str]:
-    today = stock.get_nearest_business_day_in_a_week(prev=True)
-    start_guess = (pd.Timestamp(today) - pd.Timedelta(days=days * 2 + 10)).strftime("%Y%m%d")
-    trading_days = stock.get_previous_business_days(fromdate=start_guess, todate=today)
+    # "오늘"이 영업일이어도 당일 투자자별 매매동향은 아직 게시 전일 수 있어(실제 확인됨),
+    # collect.py의 resolve_target_date()와 동일하게 "어제"를 기준으로 잡는다.
+    yesterday = (pd.Timestamp.now() - pd.Timedelta(days=1)).strftime("%Y%m%d")
+    last_date = stock.get_nearest_business_day_in_a_week(date=yesterday, prev=True)
+    start_guess = (pd.Timestamp(last_date) - pd.Timedelta(days=days * 2 + 10)).strftime("%Y%m%d")
+    trading_days = stock.get_previous_business_days(fromdate=start_guess, todate=last_date)
     dates = [pd.Timestamp(d).strftime("%Y%m%d") for d in trading_days]
     return dates[-days:]
 
@@ -172,6 +175,11 @@ if __name__ == "__main__":
         print(f"기존 data/ 에서 {len(snapshots)}개 거래일 스냅샷을 불러왔습니다.")
     else:
         snapshots = collect_history(args.days)
+
+        empty_dates = [d for d, df in snapshots.items() if df.empty]
+        for d in empty_dates:
+            print(f"  {d}: 데이터가 비어있어(아직 게시 전 등) 저장에서 제외합니다.")
+            del snapshots[d]
 
         if not args.dry_run:
             for d, snap_df in snapshots.items():
