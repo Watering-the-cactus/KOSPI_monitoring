@@ -163,39 +163,6 @@ def news_cards_html(top_picks: pd.DataFrame, news_comments: dict[str, dict]) -> 
 
 
 # ---------------------------------------------------------------------------
-# 3. 추세 전환 관찰 (보조, 축약형)
-# ---------------------------------------------------------------------------
-
-
-def section_b_html(signals_b: pd.DataFrame, short_window: int, long_window: int) -> str:
-    header = (
-        f"<h2>🔄 추세 전환 관찰</h2>"
-        f"<p class='desc'>최근 {short_window}일 평균 순매수 부호가 이전 "
-        f"{long_window - short_window}일 평균과 반대로 바뀐 종목입니다 (참고용).</p>"
-    )
-    if signals_b.empty:
-        return header + "<p>조건을 만족하는 종목이 없습니다.</p>"
-
-    recent_col = [c for c in signals_b.columns if c.startswith("최근")][0]
-    prior_col = [c for c in signals_b.columns if c.startswith("이전")][0]
-    rows = "".join(
-        "<tr>"
-        f"<td>{r['종목명']}</td><td>{r['종목코드']}</td><td>{r['투자자유형']}</td>"
-        f"<td class='num'>{_signed_cell(r[recent_col])}</td>"
-        f"<td class='num'>{_signed_cell(r[prior_col])}</td>"
-        "</tr>"
-        for _, r in signals_b.iterrows()
-    )
-    table = (
-        "<div class='table-wrap'><table>"
-        "<tr><th>종목명</th><th>종목코드</th><th>투자자유형</th>"
-        f"<th>최근{short_window}일평균</th><th>이전평균</th></tr>"
-        f"{rows}</table></div>"
-    )
-    return header + table
-
-
-# ---------------------------------------------------------------------------
 # 전체 이메일 본문
 # ---------------------------------------------------------------------------
 
@@ -204,12 +171,9 @@ def build_html_body(
     target_date: str,
     df: pd.DataFrame,
     signals_a: pd.DataFrame,
-    signals_b: pd.DataFrame,
     news_comments: dict[str, dict],
     lookback: int,
     threshold: int,
-    short_window: int,
-    long_window: int,
     dashboard_url: str | None = None,
 ) -> str:
     top_picks = (
@@ -220,7 +184,7 @@ def build_html_body(
     if dashboard_url:
         dashboard_block = (
             "<div class='section'><h2>📊 상세 대시보드</h2>"
-            "<p class='desc'>코스피 전종목 정렬/검색 가능한 표를 웹에서 볼 수 있습니다.</p>"
+            "<p class='desc'>코스피 시가총액 상위 종목 정렬/검색 가능한 표를 웹에서 볼 수 있습니다.</p>"
             f"<a class='cta' href='{dashboard_url}'>대시보드 열기 →</a></div>"
         )
 
@@ -229,11 +193,10 @@ def build_html_body(
 <body><div class="container">
   <div class="header">
     <h1>코스피 투자자별 매매동향 &middot; {target_date}</h1>
-    <p>전종목 {len(df)}개 수집 완료 · 탑픽 {len(top_picks)}개 · 전종목 데이터는 첨부 엑셀 참고</p>
+    <p>시가총액 상위 {len(df)}개 중 탑픽 {len(top_picks)}개 · 전체 데이터는 첨부 엑셀 참고</p>
   </div>
   <div class="section">{top_picks_table_html(top_picks, lookback, threshold)}</div>
   <div class="section">{news_cards_html(top_picks, news_comments)}</div>
-  <div class="section">{section_b_html(signals_b, short_window, long_window)}</div>
   {dashboard_block}
   <div class="footer">이 리포트는 자동 생성되었으며 투자 판단의 참고 자료일 뿐 매수/매도 추천이 아닙니다.</div>
 </div></body></html>"""
@@ -250,13 +213,20 @@ def _top_n_df(df: pd.DataFrame, label: str, ascending: bool, n: int = TOP_N) -> 
     return df.sort_values(col, ascending=ascending).head(n)[cols]
 
 
-def build_excel_attachment(df: pd.DataFrame, signals_a: pd.DataFrame | None = None) -> bytes:
+def build_excel_attachment(
+    df: pd.DataFrame,
+    signals_a: pd.DataFrame | None = None,
+    signals_b: pd.DataFrame | None = None,
+) -> bytes:
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, index=False, sheet_name="전종목")
 
         if signals_a is not None and not signals_a.empty:
             signals_a.to_excel(writer, index=False, sheet_name="외국인연속매수_전체")
+
+        if signals_b is not None and not signals_b.empty:
+            signals_b.to_excel(writer, index=False, sheet_name="추세전환관찰")
 
         for label in INVESTOR_LABELS:
             buy = _top_n_df(df, label, ascending=False)

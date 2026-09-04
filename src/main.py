@@ -104,15 +104,12 @@ def main() -> int:
         target_date,
         df,
         signals_a,
-        signals_b,
         news_comments,
         lookback=DEFAULT_LOOKBACK,
         threshold=DEFAULT_STREAK_THRESHOLD,
-        short_window=SHORT_WINDOW,
-        long_window=LONG_WINDOW,
         dashboard_url=dashboard_url,
     )
-    excel_bytes = build_excel_attachment(df, signals_a)
+    excel_bytes = build_excel_attachment(df, signals_a, signals_b)
 
     subject = f"[코스피 매매동향] {target_date}"
     try:

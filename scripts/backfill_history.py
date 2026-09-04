@@ -21,7 +21,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from pykrx import stock
 
-from src.collect import check_krx_credentials
+from src.collect import TOP_MARKET_CAP_N, check_krx_credentials
 from src.history import save_daily_snapshot
 
 load_dotenv()  # 로컬 실행용. GitHub Actions에서는 .env가 없으므로 조용히 무시된다.
@@ -89,6 +89,7 @@ def collect_history(days: int, market: str = "KOSPI") -> dict[str, pd.DataFrame]
                     "종가": price_row["종가"] if price_row is not None else None,
                     "등락률": price_row["등락률"] if price_row is not None else None,
                     "거래대금": price_row["거래대금"] if price_row is not None else None,
+                    "시가총액": price_row["시가총액"] if price_row is not None else None,
                 }
             )
 
@@ -96,7 +97,18 @@ def collect_history(days: int, market: str = "KOSPI") -> dict[str, pd.DataFrame]
         if i % 50 == 0:
             print(f"  {i}/{len(tickers)} 종목 수집...")
 
-    return {d: pd.DataFrame(rows) for d, rows in rows_by_date.items()}
+    snapshots = {d: pd.DataFrame(rows) for d, rows in rows_by_date.items()}
+
+    # daily 파이프라인(src/collect.py)과 동일하게 시가총액 상위 N개로만 좁힌다.
+    for d, snap_df in snapshots.items():
+        if not snap_df.empty and "시가총액" in snap_df.columns:
+            snapshots[d] = (
+                snap_df.sort_values("시가총액", ascending=False)
+                .head(TOP_MARKET_CAP_N)
+                .reset_index(drop=True)
+            )
+
+    return snapshots
 
 
 def _fetch_index_close_with_retry(

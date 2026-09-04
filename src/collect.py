@@ -20,6 +20,9 @@ INVESTOR_TYPES = {
     "기타법인": "기타법인",
 }
 
+# 코스피 전종목(800개+)은 너무 많아서, 시가총액 상위 N개로만 범위를 좁힌다.
+TOP_MARKET_CAP_N = 300
+
 
 def check_krx_credentials() -> None:
     if not (os.getenv("KRX_ID") and os.getenv("KRX_PW")):
@@ -83,10 +86,10 @@ def collect_investor_net_purchases(date: str, market: str = "KOSPI") -> pd.DataF
 
 
 def collect_price_info(date: str, market: str = "KOSPI") -> pd.DataFrame:
-    """종가, 등락률, 거래대금 등 시세 정보를 조회한다."""
+    """종가, 등락률, 거래대금, 시가총액 등 시세 정보를 조회한다."""
     df = stock.get_market_ohlcv_by_ticker(date, market=market)
     df.index.name = "종목코드"
-    return df.reset_index()[["종목코드", "종가", "등락률", "거래대금"]]
+    return df.reset_index()[["종목코드", "종가", "등락률", "거래대금", "시가총액"]]
 
 
 def collect_all(
@@ -108,7 +111,11 @@ def collect_all(
             # 먼저 한 번 조회해서 세션을 "예열"한 뒤에 투자자별 조회를 한다.
             price_info = collect_price_info(target_date, market)
             net_purchases = collect_investor_net_purchases(target_date, market)
-            return target_date, net_purchases.merge(price_info, on="종목코드", how="left")
+            merged = net_purchases.merge(price_info, on="종목코드", how="left")
+            # 시가총액 상위 N개로 범위를 좁힌다 (코스피 전종목은 800개+로 너무 많음).
+            merged = merged.sort_values("시가총액", ascending=False)
+            merged = merged.head(TOP_MARKET_CAP_N).reset_index(drop=True)
+            return target_date, merged
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
             print(f"{target_date} 데이터 조회 실패({exc}), 하루 전으로 재시도합니다.")
