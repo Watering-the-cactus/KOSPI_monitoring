@@ -15,9 +15,11 @@ from email.mime.text import MIMEText
 def send_report(
     subject: str, html_body: str, attachment_bytes: bytes, attachment_name: str
 ) -> None:
-    sender = os.environ["GMAIL_ADDRESS"]
-    app_password = os.environ["GMAIL_APP_PASSWORD"]
-    recipient = os.environ["RECIPIENT_EMAIL"]
+    # GitHub secrets/로컬 .env에 복사 과정에서 앞뒤 공백/줄바꿈이 섞여 들어오는 경우가
+    # 있어서(예: RFC 5321 invalid address 오류), 방어적으로 strip 한다.
+    sender = os.environ["GMAIL_ADDRESS"].strip()
+    app_password = os.environ["GMAIL_APP_PASSWORD"].strip()
+    recipient = os.environ["RECIPIENT_EMAIL"].strip()
 
     msg = MIMEMultipart()
     msg["From"] = sender
