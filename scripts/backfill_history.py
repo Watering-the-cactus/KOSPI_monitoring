@@ -59,6 +59,11 @@ def collect_history(days: int, market: str = "KOSPI") -> dict[str, pd.DataFrame]
             print(f"  {ticker} 조회 실패: {exc}")
             continue
 
+        # 거래정지/데이터 공백 등으로 빈 응답이 오면(예외 없이 빈 DataFrame만 옴)
+        # index가 RangeIndex라 strftime이 없어 그대로는 죽는다. 건너뛴다.
+        if trades is None or trades.empty:
+            continue
+
         name = stock.get_market_ticker_name(ticker)
         trades.index = trades.index.strftime("%Y%m%d")
 
