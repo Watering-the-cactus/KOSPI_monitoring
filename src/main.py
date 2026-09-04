@@ -121,7 +121,11 @@ def main() -> int:
     excel_bytes = build_excel_attachment(df)
 
     subject = f"[코스피 매매동향] {target_date}"
-    send_report(subject, html_body, excel_bytes, f"kospi_{target_date}.xlsx")
+    try:
+        send_report(subject, html_body, excel_bytes, f"kospi_{target_date}.xlsx")
+    except Exception as exc:  # noqa: BLE001
+        print(f"이메일 발송 실패: {exc}", file=sys.stderr)
+        return 1
 
     print(
         f"리포트 발송 완료: {target_date}, {len(df)}종목, "

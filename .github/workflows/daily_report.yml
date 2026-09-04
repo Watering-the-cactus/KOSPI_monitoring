@@ -29,13 +29,14 @@ jobs:
           KRX_ID: ${{ secrets.KRX_ID }}
           KRX_PW: ${{ secrets.KRX_PW }}
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_CODE }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
           DASHBOARD_BASE_URL: ${{ vars.DASHBOARD_BASE_URL }}
         run: python -m src.main
 
       - name: Commit history & dashboard back to repo
+        if: always()  # 이메일 발송이 실패해도 그날 수집된 히스토리/대시보드는 보존한다
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
