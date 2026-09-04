@@ -60,7 +60,7 @@ Settings → Secrets and variables → Actions 에서 아래를 등록합니다.
 |---|---|
 | `KRX_ID`, `KRX_PW` | KRX 로그인 |
 | `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` | 발신 |
-| `RECIPIENT_EMAIL` | 수신 (BCG 메일 주소) |
+| `RECIPIENT_EMAIL` | 수신 주소. 쉼표(,) 또는 세미콜론(;)으로 여러 명 지정 가능 (예: `a@x.com, b@y.com`) |
 | `ANTHROPIC_API_KEY` | 뉴스 요약 |
 
 Repository variable(Variables 탭)로 `DASHBOARD_BASE_URL`도 등록하면 이메일에
