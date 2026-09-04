@@ -19,7 +19,7 @@ GitHub Actions (매일 KST 07:30, cron)
   └─ src/collect.py     KRX에서 당일 전종목 투자자별 순매수 + 시세 수집 (호출 4~5회)
   └─ src/history.py     data/YYYYMMDD.csv 로 저장, 최근 N일치 재로딩
   └─ src/signals.py     Section A(연속매수)/B(추세전환) 계산
-  └─ src/news.py        네이버 뉴스 검색 + Claude API 요약
+  └─ src/news.py        구글 뉴스(RSS) 검색 + Claude API 요약
   └─ src/build_report.py 이메일 본문(HTML) / 첨부(xlsx) / 대시보드(docs/index.html) 생성
   └─ src/send_mail.py   Gmail SMTP로 발송
   └─ (워크플로우) data/, docs/ 를 리포지토리에 커밋 & 푸시
@@ -42,12 +42,10 @@ GitHub Actions (매일 KST 07:30, cron)
 2. [Google 계정 > 보안 > 앱 비밀번호](https://myaccount.google.com/apppasswords) 에서
    앱 비밀번호를 발급받습니다.
 
-### 3. 네이버 검색 API (뉴스) — NAVER API HUB
+### 3. 뉴스 검색 — 구글 뉴스 RSS (별도 가입 불필요)
 
-2026년부로 검색 API가 개발자센터에서 네이버클라우드플랫폼(NCP)의 NAVER API HUB로
-이관되었습니다. [console.ncloud.com](https://console.ncloud.com) 에서 NCP 계정을 만든 뒤
-NAVER API HUB에서 "검색 - 뉴스" API를 신청하면 API Key ID / API Key가 발급됩니다.
-현재는 한시적으로 무료이며, 추후 유료 전환 시 별도 공지된다고 안내되어 있습니다.
+뉴스 소스는 구글 뉴스 RSS(`news.google.com/rss/search`)를 씁니다. API 키 발급이나
+계정 가입이 필요 없고, 과금 걱정도 없습니다. 별도로 준비할 게 없습니다.
 
 ### 4. Claude API (뉴스 요약)
 
@@ -63,7 +61,6 @@ Settings → Secrets and variables → Actions 에서 아래를 등록합니다.
 | `KRX_ID`, `KRX_PW` | KRX 로그인 |
 | `GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD` | 발신 |
 | `RECIPIENT_EMAIL` | 수신 (BCG 메일 주소) |
-| `NAVER_API_KEY_ID`, `NAVER_API_KEY` | 뉴스 검색 (NAVER API HUB) |
 | `ANTHROPIC_API_KEY` | 뉴스 요약 |
 
 Repository variable(Variables 탭)로 `DASHBOARD_BASE_URL`도 등록하면 이메일에

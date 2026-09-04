@@ -1,45 +1,50 @@
-"""네이버 뉴스 검색(NAVER API HUB) API로 관련 기사를 찾고, Claude API로 요약/코멘트를 생성한다.
+"""구글 뉴스(Google News RSS)로 관련 기사를 찾고, Claude API로 요약/코멘트를 생성한다.
 
-2026년 네이버 검색 API가 개발자센터(developers.naver.com)에서 네이버클라우드플랫폼(NCP)의
-NAVER API HUB로 이관되었다. 기존 개발자센터 방식은 2027-06-30까지 유예되지만, 이 프로젝트는
-계속 운영할 것이므로 처음부터 신규 HUB 방식으로 등록한다.
+구글 뉴스 RSS 검색은 API 키 발급이나 계정 가입 없이 무료로 쓸 수 있어서,
+과금 걱정 없이 뉴스 소스로 쓰기에 적합하다. (참고: 네이버 검색은 2026년부로
+NAVER API HUB로 이관되며 "현재 한시 무료, 추후 유료 전환 가능"이라 이번엔 배제했다.)
 
-필요 secrets: NAVER_API_KEY_ID, NAVER_API_KEY (NAVER API HUB, console.ncloud.com 무료 가입),
-             ANTHROPIC_API_KEY (console.anthropic.com)
+필요 secrets: ANTHROPIC_API_KEY (console.anthropic.com)
 """
 from __future__ import annotations
 
+import html
 import os
 import re
+import xml.etree.ElementTree as ET
 
 import requests
 
-NAVER_SEARCH_URL = "https://naverapihub.apigw.ntruss.com/search/v1/news"
+GOOGLE_NEWS_RSS_URL = "https://news.google.com/rss/search"
 CLAUDE_API_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL = "claude-sonnet-5"
 
-_TAG_RE = re.compile(r"</?b>")
+_TAG_RE = re.compile(r"<[^>]+>")
+_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; kospi-report-bot/1.0)"}
 
 
-def _strip_tags(text: str) -> str:
-    return _TAG_RE.sub("", text)
+def _clean_text(text: str | None) -> str:
+    return html.unescape(_TAG_RE.sub("", text or "")).strip()
 
 
 def search_news(query: str, display: int = 5) -> list[dict]:
-    """네이버 뉴스 검색(API HUB). 반환 항목: title, description, link, pubDate."""
-    headers = {
-        "X-NCP-APIGW-API-KEY-ID": os.environ["NAVER_API_KEY_ID"],
-        "X-NCP-APIGW-API-KEY": os.environ["NAVER_API_KEY"],
-    }
-    params = {"query": query, "display": display, "sort": "sim"}
+    """구글 뉴스 RSS 검색. 반환 항목: title, description, link, pubDate."""
+    params = {"q": query, "hl": "ko", "gl": "KR", "ceid": "KR:ko"}
 
-    resp = requests.get(NAVER_SEARCH_URL, headers=headers, params=params, timeout=10)
+    resp = requests.get(GOOGLE_NEWS_RSS_URL, params=params, headers=_HEADERS, timeout=10)
     resp.raise_for_status()
 
-    items = resp.json().get("items", [])
-    for item in items:
-        item["title"] = _strip_tags(item["title"])
-        item["description"] = _strip_tags(item["description"])
+    root = ET.fromstring(resp.content)
+    items = []
+    for item in root.findall("./channel/item")[:display]:
+        items.append(
+            {
+                "title": _clean_text(item.findtext("title", "")),
+                "description": _clean_text(item.findtext("description", "")),
+                "link": item.findtext("link", "") or "",
+                "pubDate": item.findtext("pubDate", "") or "",
+            }
+        )
     return items
 
 
