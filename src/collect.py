@@ -103,8 +103,11 @@ def collect_all(
     last_exc: Exception | None = None
     for _ in range(max_retries):
         try:
-            net_purchases = collect_investor_net_purchases(target_date, market)
+            # 로그인 직후 투자자별 순매수 엔드포인트를 바로 호출하면 세션이 아직
+            # 자리잡지 않아 빈 응답이 오는 경우가 있어(실제 확인됨), 다른 데이터를
+            # 먼저 한 번 조회해서 세션을 "예열"한 뒤에 투자자별 조회를 한다.
             price_info = collect_price_info(target_date, market)
+            net_purchases = collect_investor_net_purchases(target_date, market)
             return target_date, net_purchases.merge(price_info, on="종목코드", how="left")
         except Exception as exc:  # noqa: BLE001
             last_exc = exc
