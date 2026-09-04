@@ -13,7 +13,10 @@ import os
 import sys
 
 import pandas as pd
+from dotenv import load_dotenv
 from pykrx import stock
+
+load_dotenv()  # 로컬 테스트용. GitHub Actions에서는 .env가 없으므로 조용히 무시된다.
 
 from src.build_report import (
     build_dashboard_html,

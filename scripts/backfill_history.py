@@ -18,10 +18,13 @@ import argparse
 import time
 
 import pandas as pd
+from dotenv import load_dotenv
 from pykrx import stock
 
 from src.collect import check_krx_credentials
 from src.history import save_daily_snapshot
+
+load_dotenv()  # 로컬 실행용. GitHub Actions에서는 .env가 없으므로 조용히 무시된다.
 
 INVESTOR_COLUMN_MAP = {
     "개인": "개인",

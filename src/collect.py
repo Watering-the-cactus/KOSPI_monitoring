@@ -31,11 +31,20 @@ def check_krx_credentials() -> None:
 
 
 def resolve_target_date() -> str:
-    """가장 최근 영업일(YYYYMMDD)을 반환한다.
+    """가장 최근 "마감된" 영업일(YYYYMMDD)을 반환한다.
 
-    주말/공휴일에 실행되더라도 직전 거래일 데이터를 기준으로 리포트를 만들 수 있게 한다.
+    실행 시점이 오늘이 영업일이더라도, 장중/장전에는 당일 투자자별 매매동향 데이터가
+    아직 KRX에 게시되지 않은 상태다. 그래서 오늘이 아니라 "어제"를 기준으로 가장 가까운
+    직전 영업일을 찾는다 (주말/공휴일이면 자동으로 그 이전 평일로 더 물러난다).
     """
-    return stock.get_nearest_business_day_in_a_week(prev=True)
+    yesterday = (pd.Timestamp.now() - pd.Timedelta(days=1)).strftime("%Y%m%d")
+    return stock.get_nearest_business_day_in_a_week(date=yesterday, prev=True)
+
+
+def _step_back_business_day(date: str) -> str:
+    """주어진 날짜보다 하루 이전의 가장 가까운 영업일을 반환한다."""
+    prev_day = (pd.Timestamp(date) - pd.Timedelta(days=1)).strftime("%Y%m%d")
+    return stock.get_nearest_business_day_in_a_week(date=prev_day, prev=True)
 
 
 def collect_investor_net_purchases(date: str, market: str = "KOSPI") -> pd.DataFrame:
@@ -81,17 +90,28 @@ def collect_price_info(date: str, market: str = "KOSPI") -> pd.DataFrame:
 
 
 def collect_all(
-    date: str | None = None, market: str = "KOSPI"
+    date: str | None = None, market: str = "KOSPI", max_retries: int = 5
 ) -> tuple[str, pd.DataFrame]:
-    """전체 파이프라인에서 쓰는 진입점. (기준일, 병합된 DataFrame)을 반환한다."""
+    """전체 파이프라인에서 쓰는 진입점. (기준일, 병합된 DataFrame)을 반환한다.
+
+    기준일에 데이터가 비어있으면(아직 게시 전이거나 예상 밖의 휴장일이면) 하루씩
+    더 과거로 물러나며 재시도한다.
+    """
     check_krx_credentials()
     target_date = date or resolve_target_date()
 
-    net_purchases = collect_investor_net_purchases(target_date, market)
-    price_info = collect_price_info(target_date, market)
+    last_exc: Exception | None = None
+    for _ in range(max_retries):
+        try:
+            net_purchases = collect_investor_net_purchases(target_date, market)
+            price_info = collect_price_info(target_date, market)
+            return target_date, net_purchases.merge(price_info, on="종목코드", how="left")
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            print(f"{target_date} 데이터 조회 실패({exc}), 하루 전으로 재시도합니다.")
+            target_date = _step_back_business_day(target_date)
 
-    result = net_purchases.merge(price_info, on="종목코드", how="left")
-    return target_date, result
+    raise RuntimeError(f"{max_retries}회 재시도했지만 데이터를 받아오지 못했습니다: {last_exc}")
 
 
 if __name__ == "__main__":
