@@ -52,6 +52,11 @@ def foreign_streak_signals(
     price = _panel(sub, "종가")
     name = _panel(sub, "종목명")
 
+    # 탑픽으로 뽑힌 종목에 대해서는 외국인 외 다른 투자자 유형의 같은 기간
+    # 누적 순매수도 보조지표로 같이 보여준다 (참고: [[다른-투자자-비교]]).
+    other_labels = ["개인", "기관", "기타법인"]
+    other_net_buy = {label: _panel(sub, f"{label}_순매수거래대금") for label in other_labels}
+
     idx_return = index_close.loc[dates[-1]] / index_close.loc[dates[0]] - 1
 
     split = max(len(dates) - 3, 1)  # 최근 3일 vs 그 이전
@@ -66,18 +71,19 @@ def foreign_streak_signals(
             px_series.iloc[-1] / px_series.iloc[0] - 1 if len(px_series) >= 2 else float("nan")
         )
 
-        rows.append(
-            {
-                "종목코드": code,
-                "종목명": name.loc[code].dropna().iloc[-1],
-                "순매수일수": int(streak.loc[code]),
-                "lookback일수": len(dates),
-                f"{len(dates)}일_누적순매수대금": net_buy.loc[code].sum(),
-                "거래대금_변화율": vol_change,
-                "구간수익률": px_return,
-                "지수대비_초과수익률": px_return - idx_return if pd.notna(px_return) else float("nan"),
-            }
-        )
+        row = {
+            "종목코드": code,
+            "종목명": name.loc[code].dropna().iloc[-1],
+            "순매수일수": int(streak.loc[code]),
+            "lookback일수": len(dates),
+            f"{len(dates)}일_누적순매수대금": net_buy.loc[code].sum(),
+            "거래대금_변화율": vol_change,
+            "구간수익률": px_return,
+            "지수대비_초과수익률": px_return - idx_return if pd.notna(px_return) else float("nan"),
+        }
+        for label in other_labels:
+            row[f"{label}_누적순매수대금"] = other_net_buy[label].loc[code].sum()
+        rows.append(row)
 
     result = pd.DataFrame(rows)
     if not result.empty:

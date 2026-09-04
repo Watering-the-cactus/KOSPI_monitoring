@@ -19,6 +19,7 @@ from pykrx import stock
 load_dotenv()  # 로컬 테스트용. GitHub Actions에서는 .env가 없으므로 조용히 무시된다.
 
 from src.build_report import (
+    TOP_PICKS_LIMIT,
     build_dashboard_html,
     build_excel_attachment,
     build_html_body,
@@ -36,7 +37,6 @@ from src.signals import (
     trend_reversal_signals,
 )
 
-MAX_NEWS_TARGETS = 10  # 뉴스 요약 API 호출 비용을 통제하기 위한 상한
 HISTORY_WINDOW = max(DEFAULT_LOOKBACK, LONG_WINDOW)
 
 
@@ -68,19 +68,12 @@ def _compute_signals(target_date: str, df: pd.DataFrame):
     return signals_a, signals_b
 
 
-def _collect_news(signals_a: pd.DataFrame, signals_b: pd.DataFrame) -> dict[str, dict]:
-    targets: list[tuple[str, str, str]] = []  # (종목코드, 종목명, 사유)
-    for _, r in signals_a.iterrows():
-        targets.append((r["종목코드"], r["종목명"], "최근 외국인 연속 순매수"))
-    for _, r in signals_b.iterrows():
-        targets.append((r["종목코드"], r["종목명"], f"{r['투자자유형']} 매매동향 전환"))
-
-    seen: set[str] = set()
+def _collect_news(top_picks: pd.DataFrame) -> dict[str, dict]:
+    """탑픽(외국인 연속 순매수 상위 TOP_PICKS_LIMIT개)에 대해서만 뉴스를 붙인다."""
     news_comments: dict[str, dict] = {}
-    for code, name, reason in targets:
-        if code in seen or len(seen) >= MAX_NEWS_TARGETS:
-            continue
-        seen.add(code)
+    for _, r in top_picks.iterrows():
+        code, name = r["종목코드"], r["종목명"]
+        reason = f"최근 {r['순매수일수']}/{r['lookback일수']}일 외국인 연속 순매수"
         try:
             articles = search_news(name)
             comment = summarize_stock_news(name, reason, articles)
@@ -99,7 +92,8 @@ def main() -> int:
         return 1
 
     signals_a, signals_b = _compute_signals(target_date, df)
-    news_comments = _collect_news(signals_a, signals_b)
+    top_picks = signals_a.head(TOP_PICKS_LIMIT) if not signals_a.empty else signals_a
+    news_comments = _collect_news(top_picks)
     dashboard_path = build_dashboard_html(target_date, df)
 
     dashboard_url = os.getenv("DASHBOARD_BASE_URL")
@@ -118,7 +112,7 @@ def main() -> int:
         long_window=LONG_WINDOW,
         dashboard_url=dashboard_url,
     )
-    excel_bytes = build_excel_attachment(df)
+    excel_bytes = build_excel_attachment(df, signals_a)
 
     subject = f"[코스피 매매동향] {target_date}"
     try:
