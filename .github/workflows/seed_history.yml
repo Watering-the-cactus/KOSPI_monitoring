@@ -1,0 +1,41 @@
+name: Seed History & Explore Thresholds
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "시딩할 과거 거래일 수"
+        required: false
+        default: "60"
+
+permissions:
+  contents: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Seed history & explore thresholds
+        env:
+          KRX_ID: ${{ secrets.KRX_ID }}
+          KRX_PW: ${{ secrets.KRX_PW }}
+        run: python -m scripts.backfill_history --days ${{ github.event.inputs.days }} --explore-thresholds
+
+      - name: Commit seeded history back to repo
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --cached --quiet || git commit -m "chore: seed $(date -u +%F) history backfill"
+          git push

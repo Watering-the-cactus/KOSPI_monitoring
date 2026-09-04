@@ -91,24 +91,40 @@ def collect_history(days: int, market: str = "KOSPI") -> dict[str, pd.DataFrame]
     return {d: pd.DataFrame(rows) for d, rows in rows_by_date.items()}
 
 
-def explore_thresholds(history: dict[str, pd.DataFrame], candidates: list[int]) -> None:
-    """N별로 조건을 만족하는 종목 수와, 그 종목들의 거래대금 변화율/지수대비
-    초과등락률 분포를 출력해서 임계값을 고를 때 참고할 수 있게 한다."""
+def explore_thresholds(
+    history: dict[str, pd.DataFrame], candidates: list[int], lookback: int = 10
+) -> None:
+    """N별로, 쌓인 기간 전체에 걸쳐 10일짜리 창을 하루씩 밀어가며(rolling)
+    "그날 몇 종목이 조건을 만족했는지"를 계산하고 그 분포(평균/중앙값/0건인 날
+    비율)를 출력한다. 창 하나만 보고 판단하는 것보다 훨씬 안정적인 근거가 된다.
+    """
     from src.signals import foreign_streak_signals
 
     dates = sorted(history.keys())
-    lookback = min(10, len(dates))
+    if len(dates) < lookback + 1:
+        print(f"히스토리가 {len(dates)}일치뿐이라 롤링 비교를 하기엔 부족합니다.")
+        return
+
     index_close = stock.get_index_ohlcv_by_date(dates[0], dates[-1], "1001")["종가"]
     index_close.index = index_close.index.strftime("%Y%m%d")
 
-    window_history = {d: history[d] for d in dates[-lookback:]}
+    windows = range(lookback, len(dates) + 1)
+    print(f"\n평가 대상: {len(dates)}거래일 데이터, {len(list(windows))}개 롤링 창(각 {lookback}일)")
 
     for n in candidates:
-        result = foreign_streak_signals(window_history, index_close, lookback=lookback, threshold=n)
+        daily_counts = []
+        for end_idx in windows:
+            window_dates = dates[end_idx - lookback : end_idx]
+            window_history = {d: history[d] for d in window_dates}
+            result = foreign_streak_signals(
+                window_history, index_close, lookback=lookback, threshold=n
+            )
+            daily_counts.append(len(result))
+
+        s = pd.Series(daily_counts)
         print(f"\n--- threshold={n} ---")
-        print(f"걸린 종목 수: {len(result)}")
-        if not result.empty:
-            print(result[["거래대금_변화율", "구간수익률", "지수대비_초과수익률"]].describe())
+        print(f"0건인 날: {(s == 0).sum()}/{len(s)}일")
+        print(s.describe())
 
 
 if __name__ == "__main__":
@@ -132,4 +148,4 @@ if __name__ == "__main__":
         print(f"(dry-run) {len(snapshots)}개 거래일 스냅샷 준비 완료, 저장은 생략")
 
     if args.explore_thresholds:
-        explore_thresholds(snapshots, candidates=[6, 7, 8, 9])
+        explore_thresholds(snapshots, candidates=[4, 5, 6, 7, 8])
