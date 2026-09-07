@@ -2,9 +2,11 @@ name: Daily KOSPI Investor Report
 
 on:
   schedule:
-    # cron은 UTC 기준. KST(UTC+9) 07:30 = 전날 UTC 22:30
-    # 일(0)~목(4) UTC 22:30 실행 -> 월~금 KST 07:30 발송 (전 거래일 데이터 기준)
-    - cron: "30 22 * * 0-4"
+    # cron은 UTC 기준. KST(UTC+9) 06:30 = 전날 UTC 21:30
+    # 일(0)~목(4) UTC 21:30 실행 -> 월~금 KST 06:30 발송 (전 거래일 데이터 기준)
+    # 목표 도착 시각은 07:30이지만, GitHub Actions 스케줄 트리거 자체가
+    # 부하에 따라 지연되는 경우가 있어(실측: 최대 ~1시간40분 지연) 1시간 여유를 둔다.
+    - cron: "30 21 * * 0-4"
   workflow_dispatch: {}
 
 permissions:
